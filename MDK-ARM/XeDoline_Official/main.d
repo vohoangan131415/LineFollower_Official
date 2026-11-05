@@ -34,3 +34,4 @@ xedoline_official\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
 xedoline_official\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 xedoline_official\main.o: ../Core/Inc/motor.h
 xedoline_official\main.o: ../Core/Inc/rpr220.h
+xedoline_official\main.o: ../Core/Inc/hx711.h

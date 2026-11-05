@@ -98,7 +98,7 @@ int32_t HX711_ReadAverage(uint8_t samples)
             sum += val;
             valid++;
         }
-        HAL_Delay(5);
+       // HAL_Delay(5);
     }
 
     if (valid == 0) return 0;
