@@ -52,17 +52,17 @@ TIM_HandleTypeDef htim4;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-	// --- THÔNG SỐ ĐỘNG CƠ & ENCODER ---
-	#define ENCODER_PPR             11      // Xung/vòng của đĩa từ
-	#define GEAR_RATIO              35.5f   // Tỉ số truyền hộp số thực tế
-	#define TOTAL_PULSES_PER_REV    (ENCODER_PPR * 4.0f * GEAR_RATIO) // 11 * 4 * 35.5 = 1562.0 xung/vòng
+	// --- TH�NG S? �?NG CO & ENCODER ---
+	#define ENCODER_PPR             11      // Xung/v�ng c?a dia t?
+	#define GEAR_RATIO              35.5f   // T? s? truy?n h?p s? th?c t?
+	#define TOTAL_PULSES_PER_REV    (ENCODER_PPR * 4.0f * GEAR_RATIO) // 11 * 4 * 35.5 = 1562.0 xung/v�ng
 	// ===== NHIEM VU: DUNG CHO TAI -> DI TIEP -> DUNG O DICH =====
 	#define WHEEL_D_MM       67.0f    // << DO LAI duong kinh banh (mm)
 	#define MM_PER_PULSE     (3.14159265f * WHEEL_D_MM / TOTAL_PULSES_PER_REV)
 	#define CRAWL_DUTY       24.0f    // Toc do cham (kiem tra RPM: >= 0.1 m/s)
 	#define RAMP_STEP        0.1f     // Tang ga moi 2 ms (0.1 = 50%/s)
-	#define MARK_THRESH      500      // Mat 0 va mat 4 cung >= nguong = vach tai hang
-	#define WHITE_THRESH     300      // Ca 5 mat < nguong = het line
+	#define MARK_THRESH      300      // Mat 0 va mat 4 cung >= nguong = vach tai hang
+	#define WHITE_THRESH     100      // Ca 5 mat < nguong = het line
 
 	// --- Moc quang duong (mm), tinh tu luc xe bat dau chay. DO VA CHINH THUC NGHIEM ---
 	#define LOAD_ARM_MM      1980.0f  // Chi bat vach tai hang sau khi di qua quang nay
@@ -72,8 +72,11 @@ UART_HandleTypeDef huart1;
 	#define END_SLOW_MM      4200.0f  // (tinh tu luc roi vach tai hang) bat dau chay cham
 	#define END_ARM_MM       4500.0f  // (tinh tu luc roi vach tai hang) moi bat phat hien het line
 	#define END_STOP_MM      45.0f    // Di them sau khi het line (chinh de dung dung dau mut)
-	#define EDGE_OFF_MM  2600.0f   // (tính từ lúc rời chỗ tải) quay lại bám tâm, chỉnh theo thực tế
-
+	#define EDGE_OFF_MM  2600.0f   // (t�nh t? l�c r?i ch? t?i) quay l?i b�m t�m, ch?nh theo th?c t?
+	#define FORK_MIN_MM    1800.0f   // chua cho ph�p b?t m�p tru?c m?c n�y (tr�nh b?t nh?m)
+	#define FORK_N_BLACK   3         // N = n_don + 1, di?n sau khi do
+	#define FORK_CNT       10         // s? lu?t ng?t li�n ti?p (3 x 2 ms) d? l?c nhi?u
+	#define FORK_FORCE_MM  99999.0f   // qu� m?c n�y m� chua th?y th� v?n �p b?t m�p
 
 	typedef enum {
 			ST_RUN_TO_LOAD = 0,   // 0: chay den vach tai hang
@@ -87,32 +90,32 @@ UART_HandleTypeDef huart1;
 	volatile MissionState_t mission = ST_RUN_TO_LOAD;
 	volatile int32_t enc_acc_L = 0, enc_acc_R = 0;   // Xung cong don
 	volatile float   dist_dbg  = 0.0f;               // Xem bang Live Expressions
-	// Biến đo vận tốc thực tế
+	// Bi?n do v?n t?c th?c t?
 	volatile float rpm_L = 0.0f;
 	volatile float rpm_R = 0.0f;
 
-	// --- DÀN CẢM BIẾN RPR-220 & BÁM LINE ---
-	volatile uint16_t adc_sensor[NUM_SENSORS];   // Buffer nhận dữ liệu ADC DMA
-	volatile uint16_t sensor_norm[NUM_SENSORS];  // Mảng chuẩn hóa (0 -> 1000)
+	// --- D�N C?M BI?N RPR-220 & B�M LINE ---
+	volatile uint16_t adc_sensor[NUM_SENSORS];   // Buffer nh?n d? li?u ADC DMA
+	volatile uint16_t sensor_norm[NUM_SENSORS];  // M?ng chu?n h�a (0 -> 1000)
 	volatile int16_t  line_pos_error = 0;
 	volatile int16_t  prev_line_error = 0;
 	volatile uint8_t  calib_completed = 0;
 	volatile float current_weight_g = 0.0f;
 	uint32_t last_hx711_tick = 0;
 
-	// Hệ số bám line thử nghiệm
-	#define BASE_DUTY               30.0f   // Mức tốc độ nền có tải 2kg (%)
-	#define KP_LINE                 0.007f  // Hệ số P
-	#define KD_LINE                 0.0003f // Hệ số D
-	#define MAX_STEER               11.0f   // Kẹp biên lái vi sai an toàn (%)
+	// H? s? b�m line th? nghi?m
+	#define BASE_DUTY               30.0f   // M?c t?c d? n?n c� t?i 2kg (%)
+	#define KP_LINE                 0.007f  // H? s? P
+	#define KD_LINE                 0.0003f // H? s? D
+	#define MAX_STEER               11.0f   // K?p bi�n l�i vi sai an to�n (%)
 
-	// Giao tiếp UART lên MATLAB
+	// Giao ti?p UART l�n MATLAB
 	volatile uint8_t tx_ready = 0;
 	char tx_buffer[128];
 typedef enum {
-    WEIGHT_STATE_IDLE = 0,    // Bàn cân trống
-    WEIGHT_STATE_SETTLING,    // Đang chờ tay người buông ra ổn định
-    WEIGHT_STATE_LOCKED       // Đã khóa cứng loại hàng
+    WEIGHT_STATE_IDLE = 0,    // B�n c�n tr?ng
+    WEIGHT_STATE_SETTLING,    // �ang ch? tay ngu?i bu�ng ra ?n d?nh
+    WEIGHT_STATE_LOCKED       // �� kh�a c?ng lo?i h�ng
 } WeightState_t;
 
 typedef enum {
@@ -127,13 +130,15 @@ volatile float locked_weight_g = 0.0f;
 volatile uint8_t is_weight_locked = 0;
 
 static uint32_t settle_start_tick = 0;
+static uint8_t edge_latched = 0, cnt_fork = 0;
+static float d_latch;                                   // khai b�o c?nh edge_latched
 
-// Bộ đếm debounce ổn định mẫu
+// B? d?m debounce ?n d?nh m?u
 static uint8_t stable_count_1kg = 0;
 static uint8_t stable_count_2kg = 0;
 
-// Cờ telemetry (cột B_Stat): 0 = bám tâm (chưa có tải), 1 = đang bám mép
-//volatile uint8_t edge_active = 0;
+// C? telemetry (c?t B_Stat): 0 = b�m t�m (chua c� t?i), 1 = dang b�m m�p
+volatile uint8_t edge_active = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -157,8 +162,8 @@ static int16_t enc_last_L = 0, enc_last_R = 0;
 
 static void Encoder_Update(void)     // Goi moi 2 ms, KHONG xoa bo dem
 {
-    int16_t cL = (int16_t)__HAL_TIM_GET_COUNTER(&htim3);
-    int16_t cR = (int16_t)__HAL_TIM_GET_COUNTER(&htim2);
+    int16_t cL = (int16_t)__HAL_TIM_GET_COUNTER(&htim2);
+    int16_t cR = (int16_t)__HAL_TIM_GET_COUNTER(&htim3);
     int16_t dL = (int16_t)(cL - enc_last_L);  enc_last_L = cL;
     int16_t dR = (int16_t)(cR - enc_last_R);  enc_last_R = cR;
     enc_acc_L += (dL < 0) ? -dL : dL;
@@ -249,7 +254,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             if (is_weight_locked && detected_package != PACKAGE_NONE)
             {
                 d_leave = dist;  cnt_end = 0;  edge_prev = 0;
-                PD_Reset(line_pos_error);
+								edge_latched = 0;  cnt_fork = 0;
+								PD_Reset(line_pos_error);
                 mission = ST_RUN_TO_END;
             }
             break;
@@ -257,17 +263,39 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         case ST_RUN_TO_END:
         {
             int16_t err = line_pos_error;
-//            uint8_t edge_now = ((dist - d_leave) >= MARK_CLEAR_MM);   // 60 mm dau: van bam tam
-					uint8_t edge_now = ((dist - d_leave) >= MARK_CLEAR_MM) &&
-                   ((dist - d_leave) <  EDGE_OFF_MM);
+            float   s   = dist - d_leave;
+
+            // 1. Qu�t nh?n di?n ng� ba (gi? nguy�n di?u ki?n 3 m?t c?a b?n)
+            if (!edge_latched && s >= FORK_MIN_MM)
+            {
+                uint8_t n_black = 0;
+                for (uint8_t i = 0; i < 5; i++)
+                    if (sensor_norm[i] >= EDGE_THRESH) n_black++;
+
+                cnt_fork = (n_black >= FORK_N_BLACK) ? cnt_fork + 1 : 0;
+                
+                // KHI CH?T NG� BA: B?T BU?C LUU M?C d_latch T?I ��Y
+                if (cnt_fork >= FORK_CNT || s >= FORK_FORCE_MM) 
+                {
+                    edge_latched = 1;
+                    d_latch = dist; // <-- Th�m d�ng n�y d? d_latch nh?n qu�ng du?ng th?c t?
+                }
+            }
+
+            // 2. Duy tr� b�m m�p trong kho?ng 700mm t�nh t? d?nh ng� ba
+            uint8_t edge_now = edge_latched && ((dist - d_leave) < EDGE_OFF_MM);
+						edge_active = edge_now;
             if (edge_now)
             {
                 if (!edge_prev) EdgeFollow_Reset(line_pos_error);
+                
+                // GI? NGUY�N sensor_norm KH�NG �?NG TH? T?
                 err = EdgeFollow_GetError(sensor_norm,
                         (detected_package == PACKAGE_1KG) ? EDGE_SIDE_LEFT : EDGE_SIDE_RIGHT);
             }
+
             if (edge_now != edge_prev) { edge_prev = edge_now; PD_Reset(err); }
-            line_pos_error = err;                   // De telemetry hien thi
+            line_pos_error = err;
             steer = PD_Steer(err);
 
             if ((dist - d_leave) >= END_SLOW_MM) spd_target = CRAWL_DUTY;
@@ -325,31 +353,31 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     switch (weight_state)
     {
         case WEIGHT_STATE_IDLE:
-            // Chưa có hàng, giữ các cờ ở mức 0
+            // Chua c� h�ng, gi? c�c c? ? m?c 0
             is_weight_locked  = 0;
             detected_package  = PACKAGE_NONE;
             locked_weight_g   = 0.0f;
 
-            // Phát hiện có tải đặt lên bàn cân (> 500g)
+            // Ph�t hi?n c� t?i d?t l�n b�n c�n (> 500g)
             if (raw_weight > 500.0f)
             {
                 settle_start_tick = HAL_GetTick();
-                weight_state = WEIGHT_STATE_SETTLING; // Chuyển sang chờ ổn định
+                weight_state = WEIGHT_STATE_SETTLING; // Chuy?n sang ch? ?n d?nh
             }
             break;
 
         case WEIGHT_STATE_SETTLING:
-            // Nếu người dùng nhấc vật ra ngay lúc đang đặt
+            // N?u ngu?i d�ng nh?c v?t ra ngay l�c dang d?t
             if (raw_weight < 300.0f)
             {
                 weight_state = WEIGHT_STATE_IDLE;
                 break;
             }
 
-            // Chờ đủ 1200ms (1.2 giây) để tay buông hoàn toàn và lò xo Loadcell hết rung
+            // Ch? d? 1200ms (1.2 gi�y) d? tay bu�ng ho�n to�n v� l� xo Loadcell h?t rung
             if (HAL_GetTick() - settle_start_tick >= 1200)
             {
-                // Lúc này số cân đã ở trạng thái tĩnh tuyệt đối, tiến hành phân loại
+                // L�c n�y s? c�n d� ? tr?ng th�i tinh tuy?t d?i, ti?n h�nh ph�n lo?i
                 if (raw_weight >= 800.0f && raw_weight <= 1350.0f)
                 {
                     locked_weight_g   = 1000.0f;
@@ -366,16 +394,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
                 }
                 else
                 {
-                    // Trọng lượng nằm ngoài 2 dải cho phép (ví dụ 1.4kg hoặc nhiễu)
-                    // Gia hạn thêm 300ms để cân lại
+                    // Tr?ng lu?ng n?m ngo�i 2 d?i cho ph�p (v� d? 1.4kg ho?c nhi?u)
+                    // Gia h?n th�m 300ms d? c�n l?i
                     settle_start_tick = HAL_GetTick() - 900;
                 }
             }
             break;
 
         case WEIGHT_STATE_LOCKED:
-            // ĐANG KHÓA: Khi nhấc hàng ra khỏi cân (< 200g)
-            // Tự động mở khóa cho lượt chạy kế tiếp
+            // �ANG KH�A: Khi nh?c h�ng ra kh?i c�n (< 200g)
+            // T? d?ng m? kh�a cho lu?t ch?y k? ti?p
             if (raw_weight < 200.0f)
             {
                 weight_state      = WEIGHT_STATE_IDLE;
@@ -423,21 +451,21 @@ int main(void)
   MX_TIM1_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-		// 1. Khởi động driver TB6612 trên TIM4
+		// 1. Kh?i d?ng driver TB6612 tr�n TIM4
 		Motor_Init(&htim4);
 
-		// 2. Kích hoạt chế độ đếm Encoder phần cứng trên TIM2 và TIM3
+		// 2. K�ch ho?t ch? d? d?m Encoder ph?n c?ng tr�n TIM2 v� TIM3
 		HAL_TIM_Encoder_Start(&htim2, TIM_CHANNEL_ALL);
 		HAL_TIM_Encoder_Start(&htim3, TIM_CHANNEL_ALL);
 
-		// 3. Khởi tạo cảm biến RPR-220 (Calib 7000ms = 7 giây)
+		// 3. Kh?i t?o c?m bi?n RPR-220 (Calib 7000ms = 7 gi�y)
 		RPR220_Init(15000);
 		EdgeFollow_Init(EDGE_SP_LEFT_DEFAULT, EDGE_SP_RIGHT_DEFAULT); // Diem dat bam mep (nen do thuc te)
 		HAL_ADCEx_Calibration_Start(&hadc1);
 		HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_sensor, NUM_SENSORS);
-		HX711_Init(420.0f); // Hệ số scale tạm thời 420.0f
-		HX711_Tare(15);     // Lấy 15 mẫu trung bình để khóa mức 0g
-		// 4. Xóa cờ ngắt và bật ngắt định thời 2ms trên TIM1
+		HX711_Init(420.0f); // H? s? scale t?m th?i 420.0f
+		HX711_Tare(15);     // L?y 15 m?u trung b�nh d? kh�a m?c 0g
+		// 4. X�a c? ng?t v� b?t ng?t d?nh th?i 2ms tr�n TIM1
 		__HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
 		HAL_TIM_Base_Start_IT(&htim1);
   /* USER CODE END 2 */
@@ -450,10 +478,10 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 			// -------------------------------------------------------------
-    // 1. ĐỌC KHỐI LƯỢNG NON-BLOCKING
-    // Module HX711 mặc định xuất dữ liệu ở tốc độ 10 Hz (~100ms/mẫu).
-    // Khi chip chuyển đổi xong, chân DT (PB10) tự kéo về 0 -> HX711_IsReady() = 1.
-    // Lúc này hàm đọc 1 mẫu chỉ mất khoảng ~40us rồi nhả CPU ngay.
+    // 1. �?C KH?I LU?NG NON-BLOCKING
+    // Module HX711 m?c d?nh xu?t d? li?u ? t?c d? 10 Hz (~100ms/m?u).
+    // Khi chip chuy?n d?i xong, ch�n DT (PB10) t? k�o v? 0 -> HX711_IsReady() = 1.
+    // L�c n�y h�m d?c 1 m?u ch? m?t kho?ng ~40us r?i nh? CPU ngay.
     // -------------------------------------------------------------
     if (HAL_GetTick() - last_hx711_tick >= 100)
     {
@@ -463,17 +491,17 @@ int main(void)
         {
             float raw_val = HX711_GetGram(1);
 
-            // Luôn nạp raw_val vào hàm xử lý trạng thái
+            // Lu�n n?p raw_val v�o h�m x? l� tr?ng th�i
             Process_Weight_Logic(raw_val);
 
-            // Cập nhật giá trị hiển thị ra màn hình
+            // C?p nh?t gi� tr? hi?n th? ra m�n h�nh
             if (is_weight_locked)
             {
-                current_weight_g = locked_weight_g; // Đã chốt: hiện cố định 1000g hoặc 2000g
+                current_weight_g = locked_weight_g; // �� ch?t: hi?n c? d?nh 1000g ho?c 2000g
             }
             else
             {
-                current_weight_g = raw_val;          // Chưa chốt: hiện giá trị thực
+                current_weight_g = raw_val;          // Chua ch?t: hi?n gi� tr? th?c
             }
         }
     }
@@ -481,7 +509,7 @@ int main(void)
 			{
 					tx_ready = 0;
 
-					// 1. Tách phần nguyên và 1 chữ số thập phân của RPM
+					// 1. T�ch ph?n nguy�n v� 1 ch? s? th?p ph�n c?a RPM
 					int l_int  = (int)rpm_L;
 					int l_frac = (int)((rpm_L - l_int) * 10.0f + 0.5f);
 					if (l_frac >= 10) { l_int++; l_frac = 0; }
@@ -490,25 +518,26 @@ int main(void)
 					int r_frac = (int)((rpm_R - r_int) * 10.0f + 0.5f);
 					if (r_frac >= 10) { r_int++; r_frac = 0; }
 
-					// 2. Tách phần nguyên và thập phân của góc bù lái u_steer
+					// 2. T�ch ph?n nguy�n v� th?p ph�n c?a g�c b� l�i u_steer
 					int st_int  = (int)u_steer;
 					int st_frac = (int)((u_steer - (float)st_int) * 10.0f);
 					if (st_frac < 0) st_frac = -st_frac;
 
 					int w_val = (int)current_weight_g;
 
-					// Định dạng gói tin (12 tham số):
+					// �?nh d?ng g�i tin (12 tham s?):
 					// S1,S2,S3,S4,S5,Err,Pack,B_Stat,Steer,Weight,RPM_L,RPM_R\n
-					int len = sprintf(tx_buffer, "%u,%u,%u,%u,%u,%d,%d,%d,%d.%d,%d,%d.%d,%d.%d\n",
-														sensor_norm[0], sensor_norm[1], sensor_norm[2],
-														sensor_norm[3], sensor_norm[4],   // 5 mắt cảm biến chuẩn hóa (0-1000)
-														line_pos_error,                   // Sai số tâm line (-2000 đến +2000)
-														detected_package,                 // 0: Không tải, 1: 1kg, 2: 2kg
-														(int)mission,                      // 0: Bám tâm, 1: Bám mép
-														st_int, st_frac,                  // Bù lái u_steer
-														w_val,                            // Khối lượng (gram)
-														l_int, l_frac,                    // RPM Trái
-														r_int, r_frac);                   // RPM Phải
+					int len = sprintf(tx_buffer, "%u,%u,%u,%u,%u,%d,%d,%d,%d.%d,%d,%d.%d,%d.%d,%d\n",
+                  sensor_norm[0], sensor_norm[1], sensor_norm[2],
+                  sensor_norm[3], sensor_norm[4],       // C?t 1..5: 5 m?t (0-1000)
+                  line_pos_error,                       // C?t 6: Sai s? Err
+                  detected_package,                     // C?t 7: 0=None, 1=1kg, 2=2kg
+                  (int)mission + 10 * (int)edge_active, // C?t 8: 3 = b�m t�m, 13 = b�m m�p
+                  st_int, st_frac,                      // C?t 9: B� l�i u_steer
+                  w_val,                                // C?t 10: Kh?i lu?ng (g)
+                  l_int, l_frac,                        // C?t 11: RPM Tr�i
+                  r_int, r_frac,                        // C?t 12: RPM Ph?i
+                  (int)dist_dbg);                       // C?t 13: Qu�ng du?ng hi?n t?i (mm)
 
 					HAL_UART_Transmit(&huart1, (uint8_t*)tx_buffer, len, 25);
 			}

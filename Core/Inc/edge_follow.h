@@ -17,7 +17,7 @@
  */
 
 #define EDGE_NUM_SENSORS          5
-#define EDGE_THRESH               500     // Nguong 0..1000 coi mot mat la "den"
+#define EDGE_THRESH               300     // Nguong 0..1000 coi mot mat la "den"
 #define EDGE_OUTSIDE_OFFSET       500     // Mep nam ngoai mang: cong them ~0.5 pitch ra ngoai
 
 /* Diem dat mac dinh: |vi tri mep| khi xe nam chinh giua vach.

@@ -414,6 +414,16 @@
               <FilePath>..\Core\Src\hx711.c</FilePath>
             </File>
             <File>
+              <FileName>edge_follow.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Core\Src\edge_follow.c</FilePath>
+            </File>
+            <File>
+              <FileName>edge_follow.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Core\Inc\edge_follow.h</FilePath>
+            </File>
+            <File>
               <FileName>main.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/main.c</FilePath>
@@ -427,16 +437,6 @@
               <FileName>stm32f1xx_hal_msp.c</FileName>
               <FileType>1</FileType>
               <FilePath>../Core/Src/stm32f1xx_hal_msp.c</FilePath>
-            </File>
-            <File>
-              <FileName>edge_follow.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Core\Src\edge_follow.c</FilePath>
-            </File>
-            <File>
-              <FileName>edge_follow.h</FileName>
-              <FileType>5</FileType>
-              <FilePath>..\Core\Inc\edge_follow.h</FilePath>
             </File>
           </Files>
         </Group>

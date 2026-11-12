@@ -22,11 +22,17 @@ Dialog DLL:      TCM.DLL V1.46.0.0
  
 <h2>Project:</h2>
 D:\stm32\XeDoline_Official\MDK-ARM\XeDoline_Official.uvprojx
-Project File Date:  11/06/2026
+Project File Date:  11/08/2026
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 6 (build 750)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Build target 'XeDoline_Official'
+compiling edge_follow.c...
+../Core/Inc/edge_follow.h(66): warning:  #1-D: last line of file ends without a newline
+  #endif /* INC_EDGE_FOLLOW_H_ */
+..\Core\Src\edge_follow.c(74): warning:  #1-D: last line of file ends without a newline
+  }
+..\Core\Src\edge_follow.c: 2 warnings, 0 errors
 compiling main.c...
 ../Core/Inc/motor.h(78): warning:  #1-D: last line of file ends without a newline
   #endif /* INC_MOTOR_H_ */
@@ -36,17 +42,19 @@ compiling main.c...
   #endif /* __HX711_H */
 ../Core/Inc/edge_follow.h(66): warning:  #1-D: last line of file ends without a newline
   #endif /* INC_EDGE_FOLLOW_H_ */
-../Core/Src/main.c(989): warning:  #1-D: last line of file ends without a newline
+../Core/Src/main.c(1018): warning:  #1-D: last line of file ends without a newline
   #endif /* USE_FULL_ASSERT */
-../Core/Src/main.c(132): warning:  #177-D: variable "stable_count_1kg"  was declared but never referenced
+../Core/Src/main.c(134): warning:  #550-D: variable "d_latch"  was set but never used
+  static float d_latch;                                   // khai báo c?nh edge_latched
+../Core/Src/main.c(137): warning:  #177-D: variable "stable_count_1kg"  was declared but never referenced
   static uint8_t stable_count_1kg = 0;
-../Core/Src/main.c(133): warning:  #177-D: variable "stable_count_2kg"  was declared but never referenced
+../Core/Src/main.c(138): warning:  #177-D: variable "stable_count_2kg"  was declared but never referenced
   static uint8_t stable_count_2kg = 0;
-../Core/Src/main.c: 7 warnings, 0 errors
+../Core/Src/main.c: 8 warnings, 0 errors
 linking...
-Program Size: Code=15070 RO-data=338 RW-data=148 ZI-data=2276  
+Program Size: Code=15194 RO-data=338 RW-data=156 ZI-data=2276  
 FromELF: creating hex file...
-"XeDoline_Official\XeDoline_Official.axf" - 0 Error(s), 7 Warning(s).
+"XeDoline_Official\XeDoline_Official.axf" - 0 Error(s), 10 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -70,7 +78,7 @@ Package Vendor: Keil
 
    * Component: ARM::CMSIS:CORE:5.4.0
       Include file:  CMSIS\Core\Include\tz_context.h
-Build Time Elapsed:  00:00:01
+Build Time Elapsed:  00:00:02
 </pre>
 </body>
 </html>
